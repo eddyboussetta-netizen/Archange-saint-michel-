@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archange Saint Michel</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            background-color: #000;
+            color: #fff;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Cinema & Intro */
+        #intro-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 1.5s ease;
+        }
+
+        #intro-title {
+            font-size: 3em;
+            color: #ffd700;
+            text-shadow: 0 0 20px #ff8c00;
+            margin-bottom: 20px;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        #intro-sub {
+            font-size: 1.2em;
+            color: #aaa;
+            max-width: 600px;
+            text-align: center;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            border: none;
+            color: #000;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 30px;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-gold:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.8);
+        }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .hud-card {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .hud-title {
+            font-size: 0.9em;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .hud-value {
+            font-size: 1.8em;
+            color: #ffd700;
+            font-weight: bold;
+        }
+
+        /* Controls Help */
+        #controls-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            color: #ccc;
+        }
+
+        /* Dialogue Box */
+        #dialogue-modal {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 700px;
+            background: rgba(15, 15, 25, 0.95);
+            border: 2px solid #ffd700;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            z-index: 100;
+            display: none;
+            backdrop-filter: blur(15px);
+        }
+
+        #dialogue-speaker {
+            font-size: 1.1em;
+            color: #ff4d4d;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        #dialogue-text {
+            font-size: 1.1em;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            color: #eee;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1em;
+        }
+
+        .option-btn:hover {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #ffd700;
+            transform: translateX(5px);
+        }
+
+        /* Target Indicator */
+        #target-prompt {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            border: 1px solid #ffd700;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: none;
+            z-index: 50;
+            pointer-events: none;
+        }
+    </style>
+
+    <!-- Import Three.js Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <!-- Ecran d'introduction -->
+    <div id="intro-overlay">
+        <h1 id="intro-title">ARCHANGE SAINT MICHEL</h1>
+        <p id="intro-sub">
+            Parti du Mont-Saint-Michel, vous arrivez à Paris.<br>
+            100 âmes sont tourmentées par des entités démoniaques.<br>
+            Repérez-les, écoutez leur dilemme et libérez-les du mal.
+        </p>
+        <button class="btn-gold" onclick="startGame()">COMMENCER LA MISSION</button>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div class="hud-card">
+            <div class="hud-title">Âmes délivrées</div>
+            <div class="hud-value"><span id="score">0</span> / 100</div>
+        </div>
+    </div>
+
+    <div id="controls-info">
+        <b>Contrôles :</b> Z/Q/S/D ou Flèches = Se déplacer | Souris = Orienter la caméra | E = Interagir
+    </div>
+
+    <div id="target-prompt">Appuyez sur [E] pour purifier l'entité</div>
+
+    <!-- Boîte de dialogue -->
+    <div id="dialogue-modal">
+        <div id="dialogue-speaker">Entité Sombre</div>
+        <div id="dialogue-text">...</div>
+        <div class="options-container" id="options-box"></div>
+    </div>
+
+    <!-- Container 3D -->
+    <div id="canvas-container"></div>
+
+    <script>
+        // --- DONNÉES DU JEU & DIALOGUES ---
+        const DIALOGUES = [
+            {
+                prompt: "Cette personne est poussée à voler l'argent de son voisin vulnérable.",
+                options: [
+                    { text: "Au nom de la lumière, rends la justice et préserve la charité !", correct: true },
+                    { text: "Prends l'argent, personne ne le saura jamais.", correct: false },
+                    { text: "Laisse faire, ce n'est pas ton problème.", correct: false }
+                ]
+            },
+            {
+                prompt: "Une colère immense pousse cette personne à détruire ce jardin public.",
+                options: [
+                    { text: "La colère détruit l'âme. Trouve la paix et protège ce lieu de vie !", correct: true },
+                    { text: "Brule tout pour exprimer ta souffrance !", correct: false },
+                    { text: "Ignore tes sentiments et reste immobile.", correct: false }
+                ]
+            },
+            {
+                prompt: "L'entité murmure des mensonges pour briser un mariage dans cet appartement.",
+                options: [
+                    { text: "La vérité et l'amour Triomphent des ténèbres. Sois fidèle à la promesse !", correct: true },
+                    { text: "Le mensonge est plus facile, continue d'en abuser.", correct: false },
+                    { text: "Fuis sans rien dire.", correct: false }
+                ]
+            },
+            {
+                prompt: "L'esprit de cupidité pousse cet individu à abandonner sa famille pour la fortune.",
+                options: [
+                    { text: "Les vraies richesses ne sont pas matérielles. Chasse la convoitise !", correct: true },
+                    { text: "L'argent achète tout, abandonne-les.", correct: false },
+                    { text: "Garde tout pour toi uniquement.", correct: false }
+                ]
+            }
+        ];
+
+        // --- ENGINE 3D VARIABLES ---
+        let scene, camera, renderer;
+        let player, playerBody, wings;
+        let npcs = [];
+        let keys = {};
+        let score = 0;
+        let activeNPC = null;
+        let isDialogueActive = false;
+
+        // Camera control variables
+        let cameraAngleY = 0;
+        let cameraAngleX = 0.3;
+        let isMouseDown = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        // Synthèse Vocale (Voix)
+        const synth = window.speechSynthesis;
+
+        function speak(text) {
+            if (!synth) return;
+            synth.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'fr-FR';
+            utterance.pitch = 0.9;
+            utterance.rate = 0.95;
+            synth.speak(utterance);
+        }
+
+        function initEngine() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a15);
+            scene.fog = new THREE.FogExp2(0x0a0a15, 0.015);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xffd700, 1.2);
+            sunLight.position.set(50, 100, 50);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 200;
+            const d = 100;
+            sunLight.shadow.camera.left = -d;
+            sunLight.shadow.camera.right = d;
+            sunLight.shadow.camera.top = d;
+            sunLight.shadow.camera.bottom = -d;
+            scene.add(sunLight);
+
+            // World Generation
+            buildCity();
+            createPlayer();
+            spawnNPCs(100);
+
+            // Events
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', (e) => { keys[e.code] = true; handleInteractionKey(e.code); });
+            document.addEventListener('keyup', (e) => keys[e.code] = false);
+
+            // Mouse controls for Camera
+            window.addEventListener('mousedown', (e) => { isMouseDown = true; previousMousePosition = { x: e.clientX, y: e.clientY }; });
+            window.addEventListener('mouseup', () => isMouseDown = false);
+            window.addEventListener('mousemove', (e) => {
+                if (!isMouseDown) return;
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+
+                cameraAngleY -= deltaX * 0.005;
+                cameraAngleX = Math.max(0.1, Math.min(Math.PI / 2.5, cameraAngleX + deltaY * 0.005));
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            animate();
+        }
+
+        // --- CONSTRUCTEUR DE VILLE (DÉCORS ET AMBIANCE) ---
+        function buildCity() {
+            // Sol principal (Paris)
+            const groundGeo = new THREE.PlaneGeometry(300, 300);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x222225, roughness: 0.8 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Rues et Trottoirs
+            const gridHelper = new THREE.GridHelper(300, 60, 0xffd700, 0x444444);
+            gridHelper.position.y = 0.01;
+            scene.add(gridHelper);
+
+            // Bâtiments, Appartements, Jardins & Voitures
+            const buildingGeo = new THREE.BoxGeometry(1, 1, 1);
+            
+            for (let i = 0; i < 80; i++) {
+                const h = 10 + Math.random() * 25;
+                const w = 10 + Math.random() * 10;
+                const d = 10 + Math.random() * 10;
+
+                const mat = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color().setHSL(0.6, 0.1, 0.15 + Math.random() * 0.1),
+                    roughness: 0.5
+                });
+
+                const building = new THREE.Mesh(buildingGeo, mat);
+                
+                // Placement hors de la place centrale
+                let x = (Math.random() - 0.5) * 260;
+                let z = (Math.random() - 0.5) * 260;
+                if (Math.abs(x) < 20) x += 40;
+                if (Math.abs(z) < 20) z += 40;
+
+                building.position.set(x, h / 2, z);
+                building.scale.set(w, h, d);
+                building.castShadow = true;
+                building.receiveShadow = true;
+                scene.add(building);
+            }
+
+            // Jardins publics
+            for(let j = 0; j < 5; j++) {
+                const gardenGeo = new THREE.BoxGeometry(25, 0.2, 25);
+                const gardenMat = new THREE.MeshStandardMaterial({ color: 0x1e3f20 });
+                const garden = new THREE.Mesh(gardenGeo, gardenMat);
+                garden.position.set((Math.random() - 0.5) * 200, 0.1, (Math.random() - 0.5) * 200);
+                scene.add(garden);
+            }
+
+            // Voitures
+            for(let v = 0; v < 15; v++) {
+                const carGeo = new THREE.BoxGeometry(2.5, 1.2, 5);
+                const carMat = new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff });
+                const car = new THREE.Mesh(carGeo, carMat);
+                car.position.set((Math.random() - 0.5) * 220, 0.6, (Math.random() - 0.5) * 220);
+                car.castShadow = true;
+                scene.add(car);
+            }
+        }
+
+        // --- PERSONNAGE : ARCHANGE SAINT MICHEL ---
+        function createPlayer() {
+            player = new THREE.Group();
+
+            // Corps
+            const bodyGeo = new THREE.CylinderGeometry(0.3, 0.2, 1.8, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.8, roughness: 0.2 });
+            playerBody = new THREE.Mesh(bodyGeo, bodyMat);
+            playerBody.position.y = 0.9;
+            playerBody.castShadow = true;
+            player.add(playerBody);
+
+            // Tête & Auréole
+            const headGeo = new THREE.SphereGeometry(0.25, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xffdbac });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.9;
+            player.add(head);
+
+            const haloGeo = new THREE.TorusGeometry(0.3, 0.03, 16, 100);
+            const haloMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+            const halo = new THREE.Mesh(haloGeo, haloMat);
+            halo.rotation.x = Math.PI / 2;
+            halo.position.y = 2.3;
+            player.add(halo);
+
+            // Ailes Divines
+            wings = new THREE.Group();
+            const wingGeo = new THREE.BoxGeometry(0.1, 1.2, 0.6);
+            const wingMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xaaaaaa, emissiveIntensity: 0.2 });
+            
+            const leftWing = new THREE.Mesh(wingGeo, wingMat);
+            leftWing.position.set(-0.4, 1.4, -0.2);
+            leftWing.rotation.set(0, -0.4, -0.3);
+
+            const rightWing = new THREE.Mesh(wingGeo, wingMat);
+            rightWing.position.set(0.4, 1.4, -0.2);
+            rightWing.rotation.set(0, 0.4, 0.3);
+
+            wings.add(leftWing);
+            wings.add(rightWing);
+            player.add(wings);
+
+            // Lumière émanant de Saint Michel
+            const light = new THREE.PointLight(0xffd700, 2, 15);
+            light.position.y = 2;
+            player.add(light);
+
+            scene.add(player);
+        }
+
+        // --- GÉNÉRATION DES 100 PERSONNES ---
+        function spawnNPCs(count) {
+            const npcGeo = new THREE.CylinderGeometry(0.25, 0.25, 1.6, 12);
+
+            for (let i = 0; i < count; i++) {
+                const isPossessed = true; // Toutes les personnes cibles contiennent l'entité au départ
+
+                const npcMat = new THREE.MeshStandardMaterial({ color: 0x555566 });
+                const npc = new THREE.Mesh(npcGeo, npcMat);
+
+                // Position aléatoire dans la ville (rues, jardins, intérieurs)
+                const x = (Math.random() - 0.5) * 260;
+                const z = (Math.random() - 0.5) * 260;
+                npc.position.set(x, 0.8, z);
+                npc.castShadow = true;
+
+                // Aura diabolique (effet visuel de l'entité)
+                const auraGeo = new THREE.SphereGeometry(0.8, 16, 16);
+                const auraMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, transparent: true, opacity: 0.4 });
+                const aura = new THREE.Mesh(auraGeo, auraMat);
+                aura.position.y = 0.5;
+                npc.add(aura);
+
+                npc.userData = {
+                    id: i,
+                    isPossessed: isPossessed,
+                    aura: aura,
+                    dialogue: DIALOGUES[Math.floor(Math.random() * DIALOGUES.length)]
+                };
+
+                npcs.push(npc);
+                scene.add(npc);
+            }
+        }
+
+        // --- BOUCLE DE JEU & RENDER ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!isDialogueActive) {
+                updatePlayerMovement();
+            }
+
+            // Animation des ailes et des auras
+            const time = Date.now() * 0.003;
+            if (wings) {
+                wings.children[0].rotation.z = -0.3 + Math.sin(time) * 0.1;
+                wings.children[1].rotation.z = 0.3 - Math.sin(time) * 0.1;
+            }
+
+            npcs.forEach(npc => {
+                if (npc.userData.isPossessed && npc.userData.aura) {
+                    npc.userData.aura.rotation.y += 0.02;
+                    npc.userData.aura.scale.setScalar(1 + Math.sin(time * 2) * 0.1);
+                }
+            });
+
+            checkProximity();
+            updateCamera();
+
+            renderer.render(scene, camera);
+        }
+
+        function updatePlayerMovement() {
+            const moveSpeed = 0.25;
+            let moveX = 0;
+            let moveZ = 0;
+
+            if (keys['KeyW'] || keys['ArrowUp']) moveZ -= 1;
+            if (keys['KeyS'] || keys['ArrowDown']) moveZ += 1;
+            if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 1;
+            if (keys['KeyD'] || keys['ArrowRight']) moveX += 1;
+
+            if (moveX !== 0 || moveZ !== 0) {
+                // Direction relative à la caméra
+                const angle = cameraAngleY;
+                const nx = moveX * Math.cos(angle) + moveZ * Math.sin(angle);
+                const nz = -moveX * Math.sin(angle) + moveZ * Math.cos(angle);
+
+                player.position.x += nx * moveSpeed;
+                player.position.z += nz * moveSpeed;
+
+                // Orient le personnage vers sa direction de marche
+                player.rotation.y = Math.atan2(nx, nz);
+            }
+        }
+
+        function updateCamera() {
+            const dist = 8;
+            camera.position.x = player.position.x + dist * Math.sin(cameraAngleY) * Math.cos(cameraAngleX);
+            camera.position.y = player.position.y + dist * Math.sin(cameraAngleX) + 1.5;
+            camera.position.z = player.position.z + dist * Math.cos(cameraAngleY) * Math.cos(cameraAngleX);
+            camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
+        }
+
+        // --- INTERACTION & DÉTECTION ---
+        function checkProximity() {
+            let found = null;
+            const prompt = document.getElementById('target-prompt');
+
+            for (let npc of npcs) {
+                if (npc.userData.isPossessed) {
+                    const dist = player.position.distanceTo(npc.position);
+                    if (dist < 3.0) {
+                        found = npc;
+                        break;
+                    }
+                }
+            }
+
+            if (found && !isDialogueActive) {
+                activeNPC = found;
+                prompt.style.display = 'block';
+            } else {
+                if (!isDialogueActive) activeNPC = null;
+                prompt.style.display = 'none';
+            }
+        }
+
+        function handleInteractionKey(code) {
+            if (code === 'KeyE' && activeNPC && !isDialogueActive) {
+                startDialogue(activeNPC);
+            }
+        }
+
+        // --- SYSTÈME DE DIALOGUE & PURIFICATION ---
+        function startDialogue(npc) {
+            isDialogueActive = true;
+            document.getElementById('target-prompt').style.display = 'none';
+            const modal = document.getElementById('dialogue-modal');
+            const textElem = document.getElementById('dialogue-text');
+            const optionsBox = document.getElementById('options-box');
+
+            const data = npc.userData.dialogue;
+            textElem.innerText = data.prompt;
+            optionsBox.innerHTML = '';
+
+            // Voix
+            speak("L'entité contrôle cette personne. " + data.prompt);
+
+            data.options.forEach((opt) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => selectOption(opt.correct, npc);
+                optionsBox.appendChild(btn);
+            });
+
+            modal.style.display = 'block';
+        }
+
+        function selectOption(isCorrect, npc) {
+            const modal = document.getElementById('dialogue-modal');
+
+            if (isCorrect) {
+                speak("Par la lumière de Saint Michel, sois libéré !");
+                // Succès : Libération de l'âme
+                npc.userData.isPossessed = false;
+                npc.remove(npc.userData.aura); // Retire l'aura sombre
+                npc.material.color.setHex(0x00ff88); // Devient vert/lumineux
+
+                score++;
+                document.getElementById('score').innerText = score;
+            } else {
+                speak("L'entité résiste. Essaie encore !");
+            }
+
+            modal.style.display = 'none';
+            isDialogueActive = false;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Démarrage du jeu depuis l'intro
+        function startGame() {
+            const intro = document.getElementById('intro-overlay');
+            intro.style.opacity = '0';
+            setTimeout(() => {
+                intro.style.display = 'none';
+                initEngine();
+                speak("Bienvenue à Paris, Archange Saint Michel. Retrouvez les cent personnes sous l'emprise du mal.");
+            }, 1500);
+        }
+    </script>
+</body>
+</html>
